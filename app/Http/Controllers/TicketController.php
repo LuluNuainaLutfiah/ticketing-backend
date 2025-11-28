@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class TicketController extends Controller
 {
@@ -20,7 +20,6 @@ class TicketController extends Controller
             'priority'    => ['required', 'in:LOW,MEDIUM,HIGH'],
         ]);
 
-        // generate code_ticket sederhana
         $nextId = (Ticket::max('id_ticket') ?? 0) + 1;
         $code   = 'TCK-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
 
@@ -34,13 +33,22 @@ class TicketController extends Controller
             'created_by'  => $user->id,
         ]);
 
+        // LOG: tiket dibuat
+        ActivityLog::create([
+            'action'       => 'CREATE_TICKET',
+            'details'      => 'Ticket dibuat oleh ' . $user->name,
+            'action_time'  => now(),
+            'performed_by' => $user->id,
+            'id_ticket'    => $ticket->id_ticket,
+        ]);
+
         return response()->json([
             'message' => 'Ticket berhasil dibuat',
             'data'    => $ticket,
         ], 201);
     }
 
-    // USER: lihat tiket yang dia buat sendiri
+    // USER: lihat tiket miliknya
     public function myTickets(Request $request)
     {
         $user = $request->user();
@@ -71,11 +79,15 @@ class TicketController extends Controller
     // ADMIN: update status tiket
     public function updateStatus(Request $request, $id_ticket)
     {
+        $user = $request->user();
+
         $data = $request->validate([
             'status' => ['required', 'in:OPEN,IN_PROGRESS,RESOLVED'],
         ]);
 
         $ticket = Ticket::findOrFail($id_ticket);
+
+        $oldStatus = $ticket->status;
 
         $ticket->status = $data['status'];
 
@@ -84,6 +96,15 @@ class TicketController extends Controller
         }
 
         $ticket->save();
+
+        // LOG: status diubah
+        ActivityLog::create([
+            'action'       => 'UPDATE_STATUS',
+            'details'      => "Status diubah dari {$oldStatus} ke {$ticket->status}",
+            'action_time'  => now(),
+            'performed_by' => $user->id,
+            'id_ticket'    => $ticket->id_ticket,
+        ]);
 
         return response()->json([
             'message' => 'Status tiket berhasil diupdate',
