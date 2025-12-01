@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketMessageController;
+use App\Http\Controllers\UserDashboardController;
 
 // semua route di file ini otomatis diprefix "api"
 // jadi URL akhirnya: /api/auth/register, /api/auth/login
@@ -51,3 +52,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/dashboard/recent-activities', [AdminDashboardController::class, 'recentActivities']);
 });
 
+
+// ===== ROUTE USER DASHBOARD =====
+Route::middleware('auth:sanctum')->group(function () {
+    // dashboard user (mahasiswa / dosen)
+    Route::get('/user/dashboard', [UserDashboardController::class, 'index']);
+});
