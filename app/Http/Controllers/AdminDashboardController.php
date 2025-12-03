@@ -23,6 +23,15 @@ class AdminDashboardController extends Controller
 
         $totalUsers        = User::where('role', 'user')->count();
         $totalAdmins       = User::where('role', 'admin')->count();
+        $studentCount      = User::where('role', 'user')
+            ->where('user_type', 'mahasiswa')
+            ->count();
+
+        $lecturerCount     = User::where('role', 'user')
+            ->where('user_type', 'dosen')
+            ->count();
+
+
 
         $todayTickets      = Ticket::whereDate('created_at', today())->count();
 
@@ -38,9 +47,12 @@ class AdminDashboardController extends Controller
                     'today_created'      => $todayTickets,
                 ],
                 'users' => [
-                    'total_users'  => $totalUsers,
-                    'total_admins' => $totalAdmins,
-                ],
+                    'total_users'   => $totalUsers,
+                    'total_admins'  => $totalAdmins,
+                    'mahasiswa'     => $studentCount,
+                    'dosen'         => $lecturerCount,
+],
+
             ],
         ]);
     }

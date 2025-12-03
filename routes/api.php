@@ -32,9 +32,12 @@ Route::middleware(['auth:sanctum', 'admin'])
 // ====== ROUTE USER & ADMIN UNTUK TICKET ======
 // User login (role user/admin) boleh buat tiket & lihat tiket miliknya
 Route::middleware('auth:sanctum')->group(function () {
-      // Ticket basic
-    Route::post('/tickets',      [TicketController::class, 'store']);      // buat tiket
-    Route::get('/tickets/my',    [TicketController::class, 'myTickets']);  // tiket milik user
+     // ==== TICKET USER ====
+    Route::get('/tickets', [TicketController::class, 'userIndex']);               // list tiket milik user
+    Route::post('/tickets', [TicketController::class, 'store']);                  // buat tiket baru
+    Route::get('/tickets/{id_ticket}', [TicketController::class, 'show']);        // detail tiket
+    Route::put('/tickets/{id_ticket}', [TicketController::class, 'update']);      // update tiket
+    Route::delete('/tickets/{id_ticket}', [TicketController::class, 'destroy']);  // hapus tiket
 
      // Pesan di dalam tiket
     Route::get('/tickets/{id_ticket}/messages', [TicketMessageController::class, 'index']);

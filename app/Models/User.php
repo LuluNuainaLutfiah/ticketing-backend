@@ -21,6 +21,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'user_type',
         'npm',          // mahasiswa
         'nik',          // dosen
         'phone',
