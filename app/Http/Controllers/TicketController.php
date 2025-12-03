@@ -189,33 +189,54 @@ class TicketController extends Controller
     }
 
     /** ========== (OPSIONAL) ADMIN UPDATE STATUS ========== */
-    public function updateStatus(Request $request, $id_ticket)
-    {
-        $admin = $request->user();
+   public function updateStatus(Request $request, $id_ticket)
+{
+    $admin = $request->user();
 
-        $ticket = Ticket::where('id_ticket', $id_ticket)->firstOrFail();
+    $ticket = Ticket::where('id_ticket', $id_ticket)->firstOrFail();
 
-        $data = $request->validate([
-            'status' => ['required', 'in:OPEN,IN_PROGRESS,RESOLVED'],
-        ]);
+    $data = $request->validate([
+        'status' => ['required', 'in:OPEN,IN_PROGRESS,RESOLVED'],
+    ]);
 
-        $ticket->status = $data['status'];
-        if ($data['status'] === 'RESOLVED') {
-            $ticket->resolved_at = now();
-        }
-        $ticket->save();
+    $oldStatus = $ticket->status;
+    $newStatus = $data['status'];
 
-        ActivityLog::create([
-            'action'      => 'UPDATE_STATUS',
-            'details'     => 'Admin mengubah status tiket menjadi '.$data['status'],
-            'action_time' => now(),
-            'performed_by'=> $admin->id,
-            'id_ticket'   => $ticket->id_ticket,
-        ]);
-
+    // kalau status sama, ga usah ngapa-ngapain
+    if ($oldStatus === $newStatus) {
         return response()->json([
-            'message' => 'Ticket status updated',
+            'message' => 'Status tidak berubah',
             'data'    => $ticket,
         ]);
     }
+
+    // update status
+    $ticket->status = $newStatus;
+
+    // atur resolved_at
+    if ($newStatus === 'RESOLVED') {
+        // tiket selesai → isi timestamp
+        $ticket->resolved_at = now();
+    } else {
+        // kalau dibalikin ke OPEN / IN_PROGRESS → kosongkan lagi
+        $ticket->resolved_at = null;
+    }
+
+    $ticket->save();
+
+    // catat di activity_log
+    ActivityLog::create([
+        'action'      => 'UPDATE_STATUS',
+        'details'     => "Admin mengubah status dari {$oldStatus} ke {$newStatus}",
+        'action_time' => now(),
+        'performed_by'=> $admin->id,
+        'id_ticket'   => $ticket->id_ticket,
+    ]);
+
+    return response()->json([
+        'message' => 'Ticket status updated',
+        'data'    => $ticket,
+    ]);
+}
+
 }
