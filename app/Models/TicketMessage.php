@@ -19,6 +19,11 @@ class TicketMessage extends Model
 
     public $timestamps = true; // karena ada created_at & updated_at
 
+     protected $casts = [
+        'sent_at'    => 'datetime',
+        'read_status'=> 'boolean',
+    ];
+    
     public function ticket()
     {
         return $this->belongsTo(Ticket::class, 'id_ticket', 'id_ticket');

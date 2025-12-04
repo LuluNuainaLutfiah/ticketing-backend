@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
      // Pesan di dalam tiket
     Route::get('/tickets/{id_ticket}/messages', [TicketMessageController::class, 'index']);
     Route::post('/tickets/{id_ticket}/messages', [TicketMessageController::class, 'store']);
+    Route::delete('/tickets/{id_ticket}/messages/{id_message}', [TicketMessageController::class, 'destroy']);
 });
 
 // Admin saja yang boleh lihat semua tiket + ubah status
