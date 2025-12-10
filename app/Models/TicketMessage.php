@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Attachment; // <— tambahin ini
 
 class TicketMessage extends Model
 {
@@ -19,11 +20,11 @@ class TicketMessage extends Model
 
     public $timestamps = true; // karena ada created_at & updated_at
 
-     protected $casts = [
-        'sent_at'    => 'datetime',
-        'read_status'=> 'boolean',
+    protected $casts = [
+        'sent_at'     => 'datetime',
+        'read_status' => 'boolean',
     ];
-    
+
     public function ticket()
     {
         return $this->belongsTo(Ticket::class, 'id_ticket', 'id_ticket');
@@ -32,5 +33,11 @@ class TicketMessage extends Model
     public function sender()
     {
         return $this->belongsTo(User::class, 'id_sender');
+    }
+
+    // ✅ relasi ke attachments per message
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'id_message', 'id_message');
     }
 }

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminTicketController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketMessageController;
 use App\Http\Controllers\UserDashboardController;
@@ -36,24 +37,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets', [TicketController::class, 'userIndex']);               // list tiket milik user
     Route::post('/tickets', [TicketController::class, 'store']);                  // buat tiket baru
     Route::get('/tickets/{id_ticket}', [TicketController::class, 'show']);        // detail tiket
-    Route::put('/tickets/{id_ticket}', [TicketController::class, 'update']);      // update tiket
-    Route::delete('/tickets/{id_ticket}', [TicketController::class, 'destroy']);  // hapus tiket
 
      // Pesan di dalam tiket
     Route::get('/tickets/{id_ticket}/messages', [TicketMessageController::class, 'index']);
     Route::post('/tickets/{id_ticket}/messages', [TicketMessageController::class, 'store']);
-    Route::delete('/tickets/{id_ticket}/messages/{id_message}', [TicketMessageController::class, 'destroy']);
+    //Route::delete('/tickets/{id_ticket}/messages/{id_message}', [TicketMessageController::class, 'destroy']);
 });
 
 // Admin saja yang boleh lihat semua tiket + ubah status
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // ===== LIST & UPDATE TICKET =====
     Route::get('/tickets',                    [TicketController::class, 'adminIndex']);
     Route::patch('/tickets/{id_ticket}/status', [TicketController::class, 'updateStatus']);
+
+    // ===== FLOW STATUS BARU ====
+    Route::post('/tickets/{ticketId}/open',       [AdminTicketController::class, 'open']);
+    Route::post('/tickets/{ticketId}/start-work', [AdminTicketController::class, 'startWork']);
+    Route::post('/tickets/{ticketId}/resolve',    [AdminTicketController::class, 'resolve']);
 
     // dashboard admin yg tadi:
     Route::get('/dashboard/summary',           [AdminDashboardController::class, 'summary']);
     Route::get('/dashboard/recent-tickets',    [AdminDashboardController::class, 'recentTickets']);
     Route::get('/dashboard/recent-activities', [AdminDashboardController::class, 'recentActivities']);
+
 });
 
 

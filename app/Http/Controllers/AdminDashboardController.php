@@ -14,8 +14,10 @@ class AdminDashboardController extends Controller
     {
         $totalTickets      = Ticket::count();
         $openTickets       = Ticket::where('status', 'OPEN')->count();
+        $inReviewTickets   = Ticket::where('status', 'IN_REVIEW')->count();
         $inProgressTickets = Ticket::where('status', 'IN_PROGRESS')->count();
         $resolvedTickets   = Ticket::where('status', 'RESOLVED')->count();
+
 
         $highPriorityOpen  = Ticket::where('status', 'OPEN')
             ->where('priority', 'HIGH')
@@ -41,6 +43,7 @@ class AdminDashboardController extends Controller
                 'tickets' => [
                     'total'        => $totalTickets,
                     'open'         => $openTickets,
+                    'in_review'    => $inReviewTickets, 
                     'in_progress'  => $inProgressTickets,
                     'resolved'     => $resolvedTickets,
                     'high_priority_open' => $highPriorityOpen,

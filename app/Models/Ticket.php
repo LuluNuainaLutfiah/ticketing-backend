@@ -20,8 +20,21 @@ class Ticket extends Model
         'resolved_at',
     ];
 
+    // Ticket dibuat oleh user
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // Tambahan WAJIB: relasi ticket → semua pesan chat
+    public function messages()
+    {
+        return $this->hasMany(TicketMessage::class, 'id_ticket', 'id_ticket');
+    }
+
+    // Tambahan WAJIB: relasi ticket → semua attachment (baik chat atau file awal)
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'id_ticket', 'id_ticket');
     }
 }
