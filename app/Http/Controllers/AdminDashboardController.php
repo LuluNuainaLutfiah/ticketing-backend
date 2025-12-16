@@ -54,7 +54,7 @@ class AdminDashboardController extends Controller
                     'total_admins'  => $totalAdmins,
                     'mahasiswa'     => $studentCount,
                     'dosen'         => $lecturerCount,
-],
+                ],
 
             ],
         ]);
@@ -63,31 +63,76 @@ class AdminDashboardController extends Controller
     // Tiket terbaru untuk list di dashboard
     public function recentTickets(Request $request)
     {
-        $tickets = Ticket::with('creator')
+        $perPage = (int) $request->get('per_page', 10);
+        $perPage = max(1, min($perPage, 50)); // aman
+
+        $page = (int) $request->get('page', 1);
+        $page = max(1, $page);
+
+    // Ambil hanya 50 ticket terbaru
+        $baseQuery = Ticket::with('creator')
             ->orderByDesc('created_at')
-            ->limit(10)
+            ->limit(50);
+
+    // Total ticket yang ditampilkan UI (maks 50)
+        $total = (clone $baseQuery)->count();
+
+        $lastPage = max(1, (int) ceil($total / $perPage));
+
+        if ($page > $lastPage) $page = $lastPage;
+
+        $items = (clone $baseQuery)
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
             ->get();
 
         return response()->json([
             'message' => 'Recent tickets fetched',
-            'data' => $tickets,
-        ]);
+            'data' => [
+                'current_page' => $page,
+                'data'         => $items,
+                'last_page'    => $lastPage, // max 5 (jika perPage=10)
+                'per_page'     => $perPage,
+                'total'        => $total,    // max 50
+                ],
+         ]);
     }
 
     // Aktivitas terbaru (activity_log)
     public function recentActivities(Request $request)
     {
         $perPage = (int) $request->get('per_page', 10);
+        $perPage = max(1, min($perPage, 50)); // 1..50
 
-        $logs = ActivityLog::with(['user', 'ticket'])
+        $page = (int) $request->get('page', 1);
+        $page = max(1, $page);
+
+    // Base query: hanya 50 activity terbaru
+        $baseQuery = ActivityLog::with(['user', 'ticket'])
             ->orderByDesc('action_time')
-            ->paginate($perPage);
+            ->limit(50);
+
+    // Total REAL yang ditampilkan UI (maks 50, bisa < 50)
+        $total = (clone $baseQuery)->count();
+
+        $lastPage = max(1, (int) ceil($total / $perPage));
+
+        if ($page > $lastPage) $page = $lastPage;
+
+        $items = (clone $baseQuery)
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
 
         return response()->json([
             'message' => 'Recent activities fetched',
-            'data'    => $logs, // paginator: data, current_page, last_page, total, etc
-        ]);
+            'data' => [
+                'current_page' => $page,
+                'data'         => $items,
+                'last_page'    => $lastPage, // max 5 kalau perPage=10
+                'per_page'     => $perPage,
+                'total'        => $total,    // max 50
+                ],
+         ]);
     }
-
 }
-
