@@ -43,7 +43,7 @@ class AdminDashboardController extends Controller
                 'tickets' => [
                     'total'        => $totalTickets,
                     'open'         => $openTickets,
-                    'in_review'    => $inReviewTickets, 
+                    'in_review'    => $inReviewTickets,
                     'in_progress'  => $inProgressTickets,
                     'resolved'     => $resolvedTickets,
                     'high_priority_open' => $highPriorityOpen,
@@ -77,15 +77,17 @@ class AdminDashboardController extends Controller
     // Aktivitas terbaru (activity_log)
     public function recentActivities(Request $request)
     {
+        $perPage = (int) $request->get('per_page', 10);
+
         $logs = ActivityLog::with(['user', 'ticket'])
             ->orderByDesc('action_time')
-            ->limit(10)
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'message' => 'Recent activities fetched',
-            'data' => $logs,
+            'data'    => $logs, // paginator: data, current_page, last_page, total, etc
         ]);
     }
+
 }
 
