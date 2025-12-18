@@ -54,18 +54,24 @@ class TicketMessageController extends Controller
         $isAdmin = $user->role === 'admin';
 
         // RULE STATUS CHAT
+       // OPEN: hanya admin, dan admin chat pertama ubah ke IN_REVIEW
         if ($ticket->status === 'OPEN') {
-            if (!$isAdmin) {
-                return response()->json(['message' => 'Menunggu admin membuka ticket'], 403);
-            }
-            // admin kirim pesan pertama → masuk IN_REVIEW
+            if (!$isAdmin) return response()->json(['message' => 'Menunggu admin membuka ticket'], 403);
             $ticket->update(['status' => 'IN_REVIEW']);
         }
 
+        // IN_REVIEW: hanya admin
         if ($ticket->status === 'IN_REVIEW' && !$isAdmin) {
             return response()->json(['message' => 'Ticket sedang ditinjau admin'], 403);
         }
 
+    // IN_PROGRESS: dua arah (admin & user) -> boleh
+        // Tambahan paling penting: user hanya boleh chat ketika IN_PROGRESS
+        if (!$isAdmin && $ticket->status !== 'IN_PROGRESS') {
+            return response()->json(['message' => 'User hanya bisa chat saat IN_PROGRESS'], 403);
+        }
+
+        // RESOLVED: user tidak boleh
         if ($ticket->status === 'RESOLVED' && !$isAdmin) {
             return response()->json(['message' => 'Ticket sudah selesai'], 403);
         }

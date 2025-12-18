@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request; 
+use Illuminate\Http\Request;
 use App\Models\Ticket;
 use App\Models\ActivityLog;
 
@@ -17,6 +17,7 @@ class UserDashboardController extends Controller
 
         $totalTickets     = (clone $baseQuery)->count();
         $openTickets      = (clone $baseQuery)->where('status', 'OPEN')->count();
+        $inReviewTickets  = (clone $baseQuery)->where('status', 'IN_REVIEW')->count();
         $inProgressTickets= (clone $baseQuery)->where('status', 'IN_PROGRESS')->count();
         $resolvedTickets  = (clone $baseQuery)->where('status', 'RESOLVED')->count();
 
@@ -27,10 +28,10 @@ class UserDashboardController extends Controller
             ->get();
 
         // 10 aktivitas terbaru yang dilakukan user ini (opsional, bisa buat tab "Aktivitas Saya")
-        $recentActivities = ActivityLog::where('performed_by', $user->id)
-            ->orderByDesc('action_time')
-            ->limit(10)
-            ->get();
+        // $recentActivities = ActivityLog::where('performed_by', $user->id)
+        //     ->orderByDesc('action_time')
+        //     ->limit(10)
+        //     ->get();
 
         return response()->json([
             'message' => 'Dashboard user fetched',
@@ -48,11 +49,12 @@ class UserDashboardController extends Controller
                 'tickets_summary' => [
                     'total'        => $totalTickets,
                     'open'         => $openTickets,
+                    'in_review'    => $inReviewTickets,
                     'in_progress'  => $inProgressTickets,
                     'resolved'     => $resolvedTickets,
                 ],
                 'recent_tickets'    => $recentTickets,
-                'recent_activities' => $recentActivities,
+                // 'recent_activities' => $recentActivities,
             ],
         ]);
     }

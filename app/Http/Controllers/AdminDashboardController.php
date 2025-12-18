@@ -33,8 +33,6 @@ class AdminDashboardController extends Controller
             ->where('user_type', 'dosen')
             ->count();
 
-
-
         $todayTickets      = Ticket::whereDate('created_at', today())->count();
 
         return response()->json([
