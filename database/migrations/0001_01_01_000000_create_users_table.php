@@ -23,7 +23,7 @@ return new class extends Migration
             // tipe user di lingkungan kampus: mahasiswa / dosen
             $table->enum('user_type', ['mahasiswa', 'dosen'])->nullable();
             // identitas akademik
-            $table->string('npm')->nullable();        // untuk mahasiswa
+            $table->string('npm')->nullable();        // untuk mahasiswa       sdc
             $table->string('nik')->nullable();        // untuk dosen
             $table->string('phone')->nullable();      // no hp
 
