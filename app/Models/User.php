@@ -25,6 +25,7 @@ class User extends Authenticatable
         'npm',          // mahasiswa
         'nik',          // dosen
         'phone',
+        'avatar',
     ];
 
     /**
@@ -41,6 +42,16 @@ class User extends Authenticatable
      * The attributes that should be cast.
      *
      */
+
+    public function getAvatarUrlAttribute()
+    {
+        if ($this->avatar) {
+            return url('storage/' . $this->avatar);
+    }
+
+        return null;
+    }
+
     protected function casts(): array
     {
         return [

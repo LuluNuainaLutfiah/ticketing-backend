@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminTicketController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketMessageController;
 use App\Http\Controllers\UserDashboardController;
@@ -68,3 +69,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // dashboard user (mahasiswa / dosen)
     Route::get('/user/dashboard', [UserDashboardController::class, 'index']);
 });
+
+// ===== ROUTE PROFILE =====
+Route::middleware('auth:sanctum')->group(function () {
+    // Route::get('/profile', [ProfileController::class, 'show']);
+    // Route::put('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
+});
+
+
