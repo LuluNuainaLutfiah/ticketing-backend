@@ -26,7 +26,6 @@ class TicketMessageController extends Controller
         $ticket = $this->findTicketForUser($req, $id_ticket);
         if (!$ticket) return response()->json(['message' => 'Ticket not found'], 404);
 
-        // Memuat attachments agar data file tidak hilang saat refresh
         $messages = TicketMessage::with(['sender', 'attachments'])
             ->where('id_ticket', $ticket->id_ticket)
             ->orderBy('sent_at')
@@ -50,7 +49,6 @@ class TicketMessageController extends Controller
         $user = $req->user();
         $isAdmin = $user->role === 'admin';
 
-        // Validasi Aturan Status
         if ($ticket->status === 'OPEN' && !$isAdmin) {
             return response()->json(['message' => 'Menunggu admin membuka ticket'], 403);
         }
@@ -61,7 +59,6 @@ class TicketMessageController extends Controller
         ]);
 
         return DB::transaction(function () use ($req, $ticket, $user, $isAdmin, $validated) {
-            // Update status otomatis jika Admin membalas
             if ($ticket->status === 'OPEN' && $isAdmin) {
                 $ticket->update(['status' => 'IN_REVIEW']);
                 ActivityLog::create([
@@ -81,22 +78,21 @@ class TicketMessageController extends Controller
                 'id_sender' => $user->id,
             ]);
 
-            // Bagian simpan file di store()
             if ($req->hasFile('files')) {
                 foreach ($req->file('files') as $file) {
-                $path = $file->store("tickets/{$ticket->id_ticket}", 'public');
+                    $path = $file->store("tickets/{$ticket->id_ticket}", 'public');
+                    Attachment::create([
+                        'file_name'   => $file->getClientOriginalName(),
+                        'file_type'   => $file->getMimeType(),
+                        'file_path'   => $path,
+                        'uploaded_at' => now(),
+                        'id_ticket'   => $ticket->id_ticket,
+                        'uploaded_by' => $user->id,
+                        'id_message'  => $msg->id_message, // Penanda file ini milik chat
+                    ]);
+                }
+            }
 
-            Attachment::create([
-                'file_name'   => $file->getClientOriginalName(),
-                'file_type'   => $file->getMimeType(),
-                'file_path'   => $path,
-                'uploaded_at' => now(),
-                'id_ticket'   => $ticket->id_ticket,
-                'uploaded_by' => $user->id,
-                'id_message'  => $msg->id_message, // INI KUNCI AGAR LAMPIRAN MUNCUL DI CHAT
-                ]);
-             }
-        }
             $msg->load(['sender', 'attachments']);
             return response()->json(['message' => 'Message sent', 'data' => $msg], 201);
         });
