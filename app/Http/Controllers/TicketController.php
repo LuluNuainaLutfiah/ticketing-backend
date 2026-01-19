@@ -7,24 +7,41 @@ use App\Models\Attachment;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Pagination\Paginator;
 
 class TicketController extends Controller
 {
-    // Generate kode ticket: TCK-YYYYMMDD-AB12
     protected function generateTicketCode(): string
     {
         return 'TCK-' . now()->format('Ymd') . '-' . Str::upper(Str::random(4));
     }
 
-    // List ticket milik user login
+    /**
+     * List ticket milik user login
+     * 10 per page, max 5 page (50 tiket terbaru)
+     * GET /api/tickets?page=1&status=OPEN
+     */
     public function userIndex(Request $request)
     {
         $user = $request->user();
 
+        $perPage = 10;
+
+        $page = (int) $request->query('page', 1);
+        if ($page < 1) $page = 1;
+        if ($page > 5) $page = 5;
+
+        Paginator::currentPageResolver(function () use ($page) {
+            return $page;
+        });
+
         $tickets = Ticket::where('created_by', $user->id)
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->status, function ($q) use ($request) {
+                $q->where('status', $request->status);
+            })
+            ->with(['attachments'])
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'message' => 'Tickets fetched',
@@ -32,7 +49,10 @@ class TicketController extends Controller
         ]);
     }
 
-    // Create ticket + upload multi file
+    /**
+     * Create ticket + upload multi file
+     * POST /api/tickets
+     */
     public function store(Request $request)
     {
         $user = $request->user();
@@ -42,10 +62,9 @@ class TicketController extends Controller
             'description' => 'required|string',
             'category'    => 'required|string|max:100',
             'priority'    => 'required|in:LOW,MEDIUM,HIGH',
-            'files.*'     => 'nullable|file|max:10240', // 10MB per file
+            'files.*'     => 'nullable|file|max:10240',
         ]);
 
-        // Buat ticket
         $ticket = Ticket::create([
             'code_ticket' => $this->generateTicketCode(),
             'title'       => $validated['title'],
@@ -56,10 +75,8 @@ class TicketController extends Controller
             'created_by'  => $user->id,
         ]);
 
-        // Upload file-file awal (jika ada)
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-
                 $path = $file->store("tickets/{$ticket->id_ticket}", 'public');
 
                 Attachment::create([
@@ -69,18 +86,17 @@ class TicketController extends Controller
                     'uploaded_at' => now(),
                     'id_ticket'   => $ticket->id_ticket,
                     'uploaded_by' => $user->id,
-                    'id_message'  => null, // file dari create ticket
+                    'id_message'  => null,
                 ]);
             }
         }
 
-        // Log
         ActivityLog::create([
-            'action'      => 'CREATE_TICKET',
-            'details'     => 'User membuat ticket baru',
-            'action_time' => now(),
-            'performed_by'=> $user->id,
-            'id_ticket'   => $ticket->id_ticket,
+            'action'       => 'CREATE_TICKET',
+            'details'      => 'User membuat ticket baru',
+            'action_time'  => now(),
+            'performed_by' => $user->id,
+            'id_ticket'    => $ticket->id_ticket,
         ]);
 
         return response()->json([
@@ -89,7 +105,10 @@ class TicketController extends Controller
         ], 201);
     }
 
-    // Detail ticket
+    /**
+     * Detail ticket user
+     * GET /api/tickets/{id_ticket}
+     */
     public function show(Request $request, $id_ticket)
     {
         $ticket = Ticket::where('id_ticket', $id_ticket)
@@ -106,16 +125,40 @@ class TicketController extends Controller
         ]);
     }
 
-    // List ticket untuk admin
-    public function adminIndex()
+    /**
+     * List ticket untuk admin
+     * 10 per page, max 5 page (50 tiket terbaru)
+     * GET /api/admin/tickets?page=1&status=OPEN
+     */
+    public function adminIndex(Request $request)
     {
+        $perPage = 10;
+
+        $page = (int) $request->query('page', 1);
+        if ($page < 1) $page = 1;
+        if ($page > 5) $page = 5;
+
+        Paginator::currentPageResolver(function () use ($page) {
+            return $page;
+        });
+
+        $tickets = Ticket::with(['creator', 'attachments'])
+            ->when($request->status, function ($q) use ($request) {
+                $q->where('status', $request->status);
+            })
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
         return response()->json([
             'message' => 'Admin tickets fetched',
-            'data'    => Ticket::with('creator')->orderByDesc('created_at')->get(),
+            'data'    => $tickets,
         ]);
     }
 
-    // Admin update status
+    /**
+     * Admin update status (manual)
+     * PATCH /api/admin/tickets/{id_ticket}/status
+     */
     public function updateStatus(Request $request, $id_ticket)
     {
         $admin = $request->user();
@@ -138,11 +181,11 @@ class TicketController extends Controller
         $ticket->save();
 
         ActivityLog::create([
-            'action'      => 'UPDATE_STATUS',
-            'details'     => "Status dari {$old} ke {$new}",
-            'action_time' => now(),
-            'performed_by'=> $admin->id,
-            'id_ticket'   => $ticket->id_ticket,
+            'action'       => 'UPDATE_STATUS',
+            'details'      => "Status dari {$old} ke {$new}",
+            'action_time'  => now(),
+            'performed_by' => $admin->id,
+            'id_ticket'    => $ticket->id_ticket,
         ]);
 
         return response()->json([
@@ -151,4 +194,3 @@ class TicketController extends Controller
         ]);
     }
 }
- 

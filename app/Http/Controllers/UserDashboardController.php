@@ -10,28 +10,29 @@ class UserDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $user = $request->user(); // user yang lagi login
+        $user = $request->user();
 
-        // semua tiket yang dibuat user ini
         $baseQuery = Ticket::where('created_by', $user->id);
 
-        $totalTickets     = (clone $baseQuery)->count();
-        $openTickets      = (clone $baseQuery)->where('status', 'OPEN')->count();
-        $inReviewTickets  = (clone $baseQuery)->where('status', 'IN_REVIEW')->count();
-        $inProgressTickets= (clone $baseQuery)->where('status', 'IN_PROGRESS')->count();
-        $resolvedTickets  = (clone $baseQuery)->where('status', 'RESOLVED')->count();
+        $totalTickets      = (clone $baseQuery)->count();
+        $openTickets       = (clone $baseQuery)->where('status', 'OPEN')->count();
+        $inReviewTickets   = (clone $baseQuery)->where('status', 'IN_REVIEW')->count();
+        $inProgressTickets = (clone $baseQuery)->where('status', 'IN_PROGRESS')->count();
+        $resolvedTickets   = (clone $baseQuery)->where('status', 'RESOLVED')->count();
 
-        // 5 tiket terbaru milik user
+        // 10 tiket terbaru milik user
         $recentTickets = (clone $baseQuery)
+            ->with(['attachments'])
             ->orderByDesc('created_at')
-            ->limit(5)
+            ->limit(10)
             ->get();
 
-        // 10 aktivitas terbaru yang dilakukan user ini (opsional, bisa buat tab "Aktivitas Saya")
-        // $recentActivities = ActivityLog::where('performed_by', $user->id)
-        //     ->orderByDesc('action_time')
-        //     ->limit(10)
-        //     ->get();
+        // 10 aktivitas terbaru user (opsional, kalau kamu tampilkan di dashboard)
+        $recentActivities = ActivityLog::with(['ticket'])
+            ->where('performed_by', $user->id)
+            ->orderByDesc('action_time')
+            ->limit(10)
+            ->get();
 
         return response()->json([
             'message' => 'Dashboard user fetched',
@@ -45,17 +46,17 @@ class UserDashboardController extends Controller
                     'npm'       => $user->npm,
                     'nik'       => $user->nik,
                     'phone'     => $user->phone,
-                    'avatar'    => $user->avatar ? asset('storage/' . $user->avatar) : null, // Tambahkan ini agar foto muncul
+                    'avatar'    => $user->avatar ? asset('storage/' . $user->avatar) : null,
                 ],
                 'tickets_summary' => [
-                    'total'        => $totalTickets,
-                    'open'         => $openTickets,
-                    'in_review'    => $inReviewTickets,
-                    'in_progress'  => $inProgressTickets,
-                    'resolved'     => $resolvedTickets,
+                    'total'       => $totalTickets,
+                    'open'        => $openTickets,
+                    'in_review'   => $inReviewTickets,
+                    'in_progress' => $inProgressTickets,
+                    'resolved'    => $resolvedTickets,
                 ],
-                'recent_tickets'    => $recentTickets,
-                // 'recent_activities' => $recentActivities,
+                'recent_tickets'     => $recentTickets,
+                'recent_activities'  => $recentActivities,
             ],
         ]);
     }
