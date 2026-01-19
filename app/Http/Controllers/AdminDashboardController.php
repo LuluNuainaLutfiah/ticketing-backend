@@ -10,11 +10,11 @@ use Illuminate\Http\Request;
 class AdminDashboardController extends Controller
 {
     /**
-     * Mengambil ringkasan statistik untuk kotak informasi di dashboard.
+     * Ringkasan Statistik Dashboard
      */
     public function summary(Request $request)
     {
-        // Menghitung total berdasarkan status untuk ditampilkan di widget dashboard
+        // Menghitung angka statistik untuk widget di atas dashboard
         $data = [
             'tickets' => [
                 'total'              => Ticket::count(),
@@ -32,53 +32,55 @@ class AdminDashboardController extends Controller
                 'dosen'        => User::where('role', 'user')->where('user_type', 'dosen')->count(),
             ],
         ];
-
-        return response()->json([
-            'message' => 'Dashboard summary fetched',
-            'data'    => $data,
-        ]);
+        return response()->json(['message' => 'Summary fetched', 'data' => $data]);
     }
 
     /**
-     * Mengambil daftar tiket terbaru (Dibatasi 10 data saja untuk tampilan).
-     * Data lama tetap tersimpan di database.
+     * Tiket Terbaru: 10 data per halaman, Max 50 data total (5 Halaman).
+     * Jika ada data baru, data ke-51 akan tergeser keluar dari list.
      */
     public function recentTickets(Request $request)
     {
-        // Mengambil hanya 10 tiket terbaru dengan relasi creator dan lampiran (attachments)
-        // Penambahan 'attachments' memastikan admin bisa melihat file lampiran utama
-        $items = Ticket::with(['creator', 'attachments'])
+        $perPage = 10; // Menampilkan 10 data per halaman
+        $page = $request->input('page', 1);
+
+        // KUNCI: limit(50) membatasi list hanya untuk 50 data terbaru saja
+        $baseQuery = Ticket::with(['creator', 'attachments'])
             ->orderByDesc('created_at')
-            ->limit(10) // PEMBATASAN 10 DATA UNTUK TAMPILAN
+            ->limit(50);
+
+        // Mengambil data spesifik untuk halaman yang sedang dibuka
+        $items = (clone $baseQuery)
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
             ->get();
 
         return response()->json([
-            'message' => 'Recent 10 tickets fetched',
-            'data'    => [
-                'data'  => $items,
-                'total' => $items->count(),
+            'message' => 'Recent tickets fetched',
+            'data' => [
+                'data'         => $items,
+                'current_page' => (int)$page,
+                'last_page'    => 5, // Dibatasi maksimal 5 halaman saja (50 / 10)
+                'total'        => 50
             ],
         ]);
     }
 
     /**
-     * Mengambil aktivitas sistem terbaru (Dibatasi 15 data saja untuk tampilan).
-     * Data lama tetap tersimpan di database.
+     * Aktivitas Terbaru: Maksimal 15 data.
+     * Mengambil log sistem terbaru untuk Foto Pertama.
      */
     public function recentActivities(Request $request)
     {
-        // Mengambil hanya 15 log aktivitas terbaru
+        // Mengambil hanya 15 aktivitas terakhir
         $items = ActivityLog::with(['user', 'ticket'])
             ->orderByDesc('action_time')
-            ->limit(15) // PEMBATASAN 15 DATA UNTUK TAMPILAN (Foto Pertama)
+            ->limit(15)
             ->get();
 
         return response()->json([
             'message' => 'Recent 15 activities fetched',
-            'data'    => [
-                'data'  => $items,
-                'total' => $items->count(),
-            ],
+            'data'    => ['data' => $items]
         ]);
     }
 }
