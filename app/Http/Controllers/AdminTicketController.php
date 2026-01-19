@@ -3,74 +3,148 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
-use App\Models\User;
+use App\Models\TicketMessage;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
-class AdminDashboardController extends Controller
+class AdminTicketController extends Controller
 {
     /**
-     * Mengambil 10 Tiket per halaman (Halaman 1-5 / Max 50 data).
-     * Jika ada tiket ke-51, tiket terlama hilang dari list dashboard.
+     * Middleware internal untuk memastikan pengguna adalah Admin.
      */
-    public function recentTickets(Request $request)
+    protected function ensureAdmin($user): void
     {
-        $perPage = 10; // Mengatur tampilan 10 data per halaman
-        $page = (int) $request->input('page', 1);
-
-        // Membatasi maksimal akses hanya sampai halaman 5
-        if ($page > 5) $page = 5;
-
-        // Query mengambil 50 tiket terbaru agar data lama otomatis tergeser
-        $allRecent = Ticket::with(['creator', 'attachments'])
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
-
-        // Memotong data manual: Halaman 1 ambil 10 data pertama, dsb
-        $slicedItems = $allRecent->forPage($page, $perPage)->values();
-
-        return response()->json([
-            'data' => [
-                'data'         => $slicedItems,
-                'current_page' => $page,
-                'last_page'    => 5,
-                'total'        => 50
-            ],
-        ]);
+        if ($user->role !== 'admin') {
+            abort(403, 'Hanya admin yang boleh melakukan aksi ini.');
+        }
     }
 
     /**
-     * Mengambil 10 Aktivitas Terbaru saja.
+     * Mengubah status tiket menjadi IN_REVIEW (Admin membuka tiket).
      */
-    public function recentActivities(Request $request)
+    public function open(Request $request, $ticketId)
     {
-        // Dibatasi tepat 10 data agar seimbang dengan tabel tiket
-        $items = ActivityLog::with(['user', 'ticket'])
-            ->orderByDesc('action_time')
-            ->limit(10)
-            ->get();
+        $admin = $request->user();
+        $this->ensureAdmin($admin);
 
-        return response()->json(['data' => $items]);
+        $ticket = Ticket::findOrFail($ticketId);
+
+        if ($ticket->status !== 'OPEN') {
+            return response()->json(['message' => 'Ticket bukan dalam status OPEN.'], 422);
+        }
+
+        return DB::transaction(function () use ($request, $ticket, $admin) {
+            $validated = $request->validate([
+                'message' => ['nullable', 'string', 'max:1000']
+            ]);
+
+            $text = $validated['message'] ?? 'Halo, tiket kamu sedang ditinjau oleh admin.';
+
+            // 1. Update Status Tiket
+            $ticket->status = 'IN_REVIEW';
+            $ticket->updated_at = now();
+            $ticket->save();
+
+            // 2. Kirim pesan otomatis ke chat
+            $msg = TicketMessage::create([
+                'message_body' => $text,
+                'sent_at'      => now(),
+                'read_status'  => false,
+                'id_ticket'    => $ticket->id_ticket,
+                'id_sender'    => $admin->id,
+            ]);
+
+            // 3. Catat Log Aktivitas (Untuk Dashboard Aktivitas Terbaru)
+            ActivityLog::create([
+                'action'       => 'OPEN_TO_IN_REVIEW',
+                'details'      => 'Admin mulai meninjau tiket: ' . $ticket->code_ticket,
+                'action_time'  => now(),
+                'performed_by' => $admin->id,
+                'id_ticket'    => $ticket->id_ticket,
+            ]);
+
+            // Load creator dan attachments agar UI Admin tetap menampilkan data lengkap
+            $ticket->load(['creator', 'attachments']);
+
+            return response()->json([
+                'message' => 'Ticket masuk tahap IN_REVIEW.',
+                'ticket'  => $ticket,
+                'chat'    => $msg,
+            ]);
+        });
     }
 
     /**
-     * Mengambil ringkasan angka statistik untuk widget dashboard.
+     * Mengubah status tiket menjadi IN_PROGRESS (Mulai Pengerjaan).
      */
-    public function summary(Request $request)
+    public function startWork(Request $request, $ticketId)
     {
-        $data = [
-            'tickets' => [
-                'total'       => Ticket::count(),
-                'open'        => Ticket::where('status', 'OPEN')->count(),
-                'in_review'   => Ticket::where('status', 'IN_REVIEW')->count(),
-                'in_progress' => Ticket::where('status', 'IN_PROGRESS')->count(),
-                'resolved'    => Ticket::where('status', 'RESOLVED')->count(),
-            ],
-            'users' => [
-                'total_users' => User::where('role', 'user')->count(),
-            ],
-        ];
-        return response()->json(['data' => $data]);
+        $admin = $request->user();
+        $this->ensureAdmin($admin);
+
+        $ticket = Ticket::findOrFail($ticketId);
+
+        if ($ticket->status !== 'IN_REVIEW') {
+            return response()->json(['message' => 'Status harus IN_REVIEW sebelum diproses.'], 422);
+        }
+
+        return DB::transaction(function () use ($ticket, $admin) {
+            $ticket->status = 'IN_PROGRESS';
+            $ticket->updated_at = now();
+            $ticket->save();
+
+            // Catat Log
+            ActivityLog::create([
+                'action'       => 'START_WORK',
+                'details'      => 'Admin mulai mengerjakan tiket: ' . $ticket->code_ticket,
+                'action_time'  => now(),
+                'performed_by' => $admin->id,
+                'id_ticket'    => $ticket->id_ticket,
+            ]);
+
+            $ticket->load(['creator', 'attachments']);
+
+            return response()->json([
+                'message' => 'Ticket masuk tahap IN_PROGRESS.',
+                'ticket'  => $ticket,
+            ]);
+        });
+    }
+
+    /**
+     * Menyelesaikan tiket (RESOLVED).
+     */
+    public function resolve(Request $request, $ticketId)
+    {
+        $admin = $request->user();
+        $this->ensureAdmin($admin);
+
+        $ticket = Ticket::findOrFail($ticketId);
+
+        if ($ticket->status !== 'IN_PROGRESS') {
+            return response()->json(['message' => 'Hanya tiket dalam proses yang bisa diselesaikan.'], 422);
+        }
+
+        return DB::transaction(function () use ($ticket, $admin) {
+            $ticket->status      = 'RESOLVED';
+            $ticket->resolved_at = now();
+            $ticket->save();
+
+            ActivityLog::create([
+                'action'       => 'RESOLVED',
+                'details'      => 'Tiket diselesaikan admin.',
+                'action_time'  => now(),
+                'performed_by' => $admin->id,
+                'id_ticket'    => $ticket->id_ticket,
+            ]);
+
+            $ticket->load(['creator', 'attachments']);
+
+            return response()->json([
+                'message' => 'Ticket berhasil diselesaikan.',
+                'ticket'  => $ticket,
+            ]);
+        });
     }
 }
