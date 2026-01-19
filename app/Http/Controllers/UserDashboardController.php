@@ -45,6 +45,7 @@ class UserDashboardController extends Controller
                     'npm'       => $user->npm,
                     'nik'       => $user->nik,
                     'phone'     => $user->phone,
+                    'avatar'    => $user->avatar ? asset('storage/' . $user->avatar) : null, // Tambahkan ini agar foto muncul
                 ],
                 'tickets_summary' => [
                     'total'        => $totalTickets,

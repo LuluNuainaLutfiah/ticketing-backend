@@ -18,7 +18,7 @@ return new class extends Migration
         $table->text('description')->nullable();
         $table->string('category');
         $table->enum('priority', ['LOW','MEDIUM','HIGH'])->default('MEDIUM');
-        $table->enum('status', ['OPEN','IN_PROGRESS','RESOLVED'])->default('OPEN');
+        $table->enum('status', ['OPEN','IN_REVIEW','IN_PROGRESS','RESOLVED'])->default('OPEN');
 
         $table->unsignedBigInteger('created_by');
         $table->foreign('created_by')->references('id')->on('users')->cascadeOnDelete();
