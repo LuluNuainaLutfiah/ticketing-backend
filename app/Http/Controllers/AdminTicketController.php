@@ -3,136 +3,74 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
-use App\Models\TicketMessage;
+use App\Models\User;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 
-class AdminTicketController extends Controller
+class AdminDashboardController extends Controller
 {
     /**
-     * Middleware internal untuk memastikan pengguna adalah Admin.
+     * Mengambil 10 Tiket per halaman (Halaman 1-5 / Max 50 data).
+     * Jika ada tiket ke-51, tiket terlama hilang dari list dashboard.
      */
-    protected function ensureAdmin($user): void
+    public function recentTickets(Request $request)
     {
-        if ($user->role !== 'admin') {
-            abort(403, 'Hanya admin yang boleh melakukan aksi ini.');
-        }
-    }
+        $perPage = 10; // Mengatur tampilan 10 data per halaman
+        $page = (int) $request->input('page', 1);
 
-    /**
-     * Mengubah status tiket menjadi IN_REVIEW (Admin membuka tiket).
-     */
-    public function open(Request $request, $ticketId)
-    {
-        $admin = $request->user();
-        $this->ensureAdmin($admin);
+        // Membatasi maksimal akses hanya sampai halaman 5
+        if ($page > 5) $page = 5;
 
-        $ticket = Ticket::findOrFail($ticketId);
+        // Query mengambil 50 tiket terbaru agar data lama otomatis tergeser
+        $allRecent = Ticket::with(['creator', 'attachments'])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
 
-        if ($ticket->status !== 'OPEN') {
-            return response()->json(['message' => 'Ticket bukan dalam status OPEN.'], 422);
-        }
-
-        $validated = $request->validate(['message' => ['nullable', 'string', 'max:1000']]);
-        $text = $validated['message'] ?? 'Halo, tiket kamu sedang ditinjau oleh admin.';
-
-        // Update Status Tiket
-        $ticket->status = 'IN_REVIEW';
-        $ticket->updated_at = now();
-        $ticket->save();
-
-        // Kirim pesan otomatis ke chat
-        $msg = TicketMessage::create([
-            'message_body' => $text,
-            'sent_at'      => now(),
-            'read_status'  => false,
-            'id_ticket'    => $ticket->id_ticket,
-            'id_sender'    => $admin->id,
-        ]);
-
-        // Catat Log Aktivitas
-        ActivityLog::create([
-            'action'       => 'OPEN_TO_IN_REVIEW',
-            'details'      => 'Admin membuka tiket.',
-            'action_time'  => now(),
-            'performed_by' => $admin->id,
-            'id_ticket'    => $ticket->id_ticket,
-        ]);
-
-        // RE-LOAD LAMPIRAN: Memastikan data lampiran ikut dikirim balik ke Admin
-        $ticket->load(['creator', 'attachments']);
+        // Memotong data manual: Halaman 1 ambil 10 data pertama, dsb
+        $slicedItems = $allRecent->forPage($page, $perPage)->values();
 
         return response()->json([
-            'message' => 'Ticket masuk tahap IN_REVIEW.',
-            'ticket'  => $ticket,
-            'chat'    => $msg,
+            'data' => [
+                'data'         => $slicedItems,
+                'current_page' => $page,
+                'last_page'    => 5,
+                'total'        => 50
+            ],
         ]);
     }
 
     /**
-     * Mengubah status tiket menjadi IN_PROGRESS (Mulai Pengerjaan).
+     * Mengambil 10 Aktivitas Terbaru saja.
      */
-    public function startWork(Request $request, $ticketId)
+    public function recentActivities(Request $request)
     {
-        $admin = $request->user();
-        $this->ensureAdmin($admin);
+        // Dibatasi tepat 10 data agar seimbang dengan tabel tiket
+        $items = ActivityLog::with(['user', 'ticket'])
+            ->orderByDesc('action_time')
+            ->limit(10)
+            ->get();
 
-        $ticket = Ticket::findOrFail($ticketId);
-
-        if ($ticket->status !== 'IN_REVIEW') {
-            return response()->json(['message' => 'Status harus IN_REVIEW.'], 422);
-        }
-
-        $ticket->status = 'IN_PROGRESS';
-        $ticket->updated_at = now();
-        $ticket->save();
-
-        // Catat Log
-        ActivityLog::create([
-            'action'       => 'START_WORK',
-            'details'      => 'Admin mulai mengerjakan tiket.',
-            'action_time'  => now(),
-            'performed_by' => $admin->id,
-            'id_ticket'    => $ticket->id_ticket,
-        ]);
-
-        // RE-LOAD LAMPIRAN: Penting agar lampiran tetap tampil di UI Admin
-        $ticket->load(['creator', 'attachments']);
-
-        return response()->json([
-            'message' => 'Ticket masuk tahap IN_PROGRESS.',
-            'ticket'  => $ticket,
-        ]);
+        return response()->json(['data' => $items]);
     }
 
     /**
-     * Menyelesaikan tiket (RESOLVED).
+     * Mengambil ringkasan angka statistik untuk widget dashboard.
      */
-    public function resolve(Request $request, $ticketId)
+    public function summary(Request $request)
     {
-        $admin = $request->user();
-        $this->ensureAdmin($admin);
-
-        $ticket = Ticket::findOrFail($ticketId);
-
-        $ticket->status      = 'RESOLVED';
-        $ticket->resolved_at = now();
-        $ticket->save();
-
-        ActivityLog::create([
-            'action'       => 'RESOLVED',
-            'details'      => 'Tiket diselesaikan admin.',
-            'action_time'  => now(),
-            'performed_by' => $admin->id,
-            'id_ticket'    => $ticket->id_ticket,
-        ]);
-
-        // Load lampiran untuk response final
-        $ticket->load(['creator', 'attachments']);
-
-        return response()->json([
-            'message' => 'Ticket berhasil diselesaikan.',
-            'ticket'  => $ticket,
-        ]);
+        $data = [
+            'tickets' => [
+                'total'       => Ticket::count(),
+                'open'        => Ticket::where('status', 'OPEN')->count(),
+                'in_review'   => Ticket::where('status', 'IN_REVIEW')->count(),
+                'in_progress' => Ticket::where('status', 'IN_PROGRESS')->count(),
+                'resolved'    => Ticket::where('status', 'RESOLVED')->count(),
+            ],
+            'users' => [
+                'total_users' => User::where('role', 'user')->count(),
+            ],
+        ];
+        return response()->json(['data' => $data]);
     }
 }
