@@ -125,36 +125,7 @@ class TicketController extends Controller
         ]);
     }
 
-    /**
-     * List ticket untuk admin
-     * 10 per page, max 5 page (50 tiket terbaru)
-     * GET /api/admin/tickets?page=1&status=OPEN
-     */
-    public function adminIndex(Request $request)
-    {
-        $perPage = 10;
-
-        $page = (int) $request->query('page', 1);
-        if ($page < 1) $page = 1;
-        if ($page > 5) $page = 5;
-
-        Paginator::currentPageResolver(function () use ($page) {
-            return $page;
-        });
-
-        $tickets = Ticket::with(['creator', 'attachments'])
-            ->when($request->status, function ($q) use ($request) {
-                $q->where('status', $request->status);
-            })
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
-
-        return response()->json([
-            'message' => 'Admin tickets fetched',
-            'data'    => $tickets,
-        ]);
-    }
-
+   
     /**
      * Admin update status (manual)
      * PATCH /api/admin/tickets/{id_ticket}/status
