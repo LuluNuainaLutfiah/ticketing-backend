@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 
 class AdminDashboardController extends Controller
-{
+{ 
     public function summary()
     {
         return response()->json([
