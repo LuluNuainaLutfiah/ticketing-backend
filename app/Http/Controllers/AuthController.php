@@ -59,7 +59,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'Email atau password salah'], 401);
     }
 
+    /** @var \App\Models\User $user */
     $user = Auth::user();
+
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
