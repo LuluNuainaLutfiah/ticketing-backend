@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     // REGISTER: untuk role "user" (mahasiswa/dosen)
     public function register(Request $request)
-{
+    {
     $data = $request->validate([
         'name'      => ['required','string','min:3'],
         'email'     => ['required','email','unique:users,email'],
@@ -49,7 +49,7 @@ class AuthController extends Controller
 
     // LOGIN: untuk admin & user
    public function login(Request $request)
-{
+    {
     $credentials = $request->validate([
         'email'    => ['required','email'],
         'password' => ['required','string'],
@@ -93,3 +93,6 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logout berhasil']);
     }
 }
+
+
+

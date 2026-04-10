@@ -28,11 +28,11 @@ class UserDashboardController extends Controller
             ->get();
 
         // 10 aktivitas terbaru user (opsional, kalau kamu tampilkan di dashboard)
-        $recentActivities = ActivityLog::with(['ticket'])
-            ->where('performed_by', $user->id)
-            ->orderByDesc('action_time')
-            ->limit(10)
-            ->get();
+        // $recentActivities = ActivityLog::with(['ticket'])
+        //     ->where('performed_by', $user->id)
+        //     ->orderByDesc('action_time')
+        //     ->limit(10)
+        //     ->get();
 
         return response()->json([
             'message' => 'Dashboard user fetched',
@@ -56,8 +56,10 @@ class UserDashboardController extends Controller
                     'resolved'    => $resolvedTickets,
                 ],
                 'recent_tickets'     => $recentTickets,
-                'recent_activities'  => $recentActivities,
+                // 'recent_activities'  => $recentActivities,
             ],
         ]);
     }
 }
+
+

@@ -24,7 +24,6 @@ class TicketController extends Controller
     public function userIndex(Request $request)
     {
         $user = $request->user();
-
         $perPage = 10;
 
         $page = (int) $request->query('page', 1);
@@ -125,7 +124,7 @@ class TicketController extends Controller
         ]);
     }
 
-   
+
     /**
      * Admin update status (manual)
      * PATCH /api/admin/tickets/{id_ticket}/status
@@ -165,3 +164,8 @@ class TicketController extends Controller
         ]);
     }
 }
+
+
+
+
+

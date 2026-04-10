@@ -64,7 +64,7 @@ class ForgotPasswordController extends Controller
               <p><a href="' . e($link) . '">' . e($link) . '</a></p>
 
               <p style="color:#6b7280; font-size:12px;">
-                Link ini berlaku selama <b>15 menit</b>. Jika Anda tidak merasa meminta reset password, abaikan email ini.
+                Link ini berlaku selama <b>2 menit</b>. Jika Anda tidak merasa meminta reset password, abaikan email ini.
               </p>
             </div>
         ';
@@ -98,8 +98,8 @@ class ForgotPasswordController extends Controller
             return response()->json(['message' => 'Token tidak valid atau sudah kadaluarsa.'], 400);
         }
 
-        // Expired 15 menit
-        $expired = Carbon::parse($record->created_at)->addMinutes(15)->isPast();
+        // Expired 2 menit
+        $expired = Carbon::parse($record->created_at)->addMinutes(2)->isPast();
         $tokenOk = Hash::check($request->token, $record->token);
 
         if (!$tokenOk || $expired) {
@@ -122,3 +122,5 @@ class ForgotPasswordController extends Controller
         ], 200);
     }
 }
+
+

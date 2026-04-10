@@ -35,7 +35,6 @@ class AdminTicketController extends Controller
 
         $perPage = 10;
 
-        // 🔒 Batasi page maksimal 5 (50 data)
         $page = (int) $request->query('page', 1);
         if ($page < 1) {
             $page = 1;
@@ -44,7 +43,6 @@ class AdminTicketController extends Controller
             $page = 5;
         }
 
-        // Paksa paginator pakai page di atas
         Paginator::currentPageResolver(function () use ($page) {
             return $page;
         });
@@ -221,3 +219,5 @@ class AdminTicketController extends Controller
         });
     }
 }
+
+
